@@ -1,34 +1,74 @@
-const input = document.querySelector('#username')
-const submit = document.querySelector('#submit')
-const profileImg = document.querySelector('.profileImg')
-const nameuser = document.querySelector('.span-name')
-const portfolio = document.querySelector('.portfolio a')
-const locationName = document.querySelector('.span-location')
-const repos = document.querySelector('.span-repos')
-const follower = document.querySelector('.span-follower')
-const bio = document.querySelector('.span-bio')
+const $ = (selector) => document.querySelector(selector)
 
+const el = {
+    form: $('#form'),
+    input: $('#username'),
+    button: $('#submit'),
+    message: $('#message'),
+    img: $('.profileImg'),
+    name: $('.span-name'),
+    link: $('.portfolio a'),
+    location: $('.span-location'),
+    repos: $('.span-repos'),
+    followers: $('.span-follower'),
+    bio: $('.span-bio'),
+}
 
+const showMessage = (text, isError) => {
+    if (!el.message) return
+    el.message.textContent = text || ''
+    el.message.classList.toggle('is-visible', Boolean(text))
+    el.message.classList.toggle('is-error', Boolean(isError))
+}
 
-const submitForm = async (e) => {
-    e.preventDefault();
-    const value = input.value
+const setLoading = (on) => {
+    el.button.disabled = Boolean(on)
+    el.button.textContent = on ? 'Searching…' : 'Search'
+}
+
+const renderUser = (user) => {
+    el.img.src = user.avatar_url || './vector-users-icon.webp'
+    el.img.alt = user.login ? `${user.login} avatar` : 'Profile image'
+
+    el.name.textContent = user.name || user.login || 'N/A'
+    el.location.textContent = user.location || 'N/A'
+    el.repos.textContent = Number.isFinite(user.public_repos) ? user.public_repos : 'N/A'
+    el.followers.textContent = Number.isFinite(user.followers) ? user.followers : 'N/A'
+    el.bio.textContent = user.bio || 'N/A'
+
+    const website = (user.blog || '').trim()
+    el.link.href = website || user.html_url || 'https://github.com/'
+    el.link.textContent = website ? 'Website' : 'GitHub profile'
+}
+
+const onSubmit = async (e) => {
+    e.preventDefault()
+
+    const username = el.input.value.trim()
+    if (!username) {
+        showMessage('Enter a GitHub username to search.', true)
+        el.input.focus()
+        return
+    }
+
+    showMessage('Searching GitHub…')
+    setLoading(true)
+
     try {
-        const response = await fetch(`https://api.github.com/users/${value}`);
-        const data = await response.json();
-        console.log(data)
-        profileImg.src = data.avatar_url;
-        nameuser.textContent = data.name || "N/A";
-        portfolio.textContent = "Portfolio Link";
-        portfolio.href = data.html_url;
-        locationName.textContent = data.location || "N/A";
-        repos.textContent = data.public_repos;
-        follower.textContent = data.followers;
-        bio.textContent = data.bio || "N/A";
+        const res = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}`)
+        if (!res.ok) {
+            showMessage(res.status === 404 ? 'User not found. Check the username and try again.' : 'Could not fetch data right now. Please try again.', true)
+            return
+        }
 
-    } catch (error) {
-        console.log(error)
+        const user = await res.json()
+        renderUser(user)
+        showMessage('')
+    } catch {
+        showMessage('Network error. Please check your connection and try again.', true)
+    } finally {
+        setLoading(false)
     }
 }
 
-submit.addEventListener('click', submitForm);
+el.form.addEventListener('submit', onSubmit)
